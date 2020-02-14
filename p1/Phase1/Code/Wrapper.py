@@ -34,7 +34,7 @@ def main():
 	# NumFeatures = Args.NumFeatures
 
 	Parser = argparse.ArgumentParser()
-	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set3", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
+	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set1", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
 	Parser.add_argument('--NumFeatures', default=100, help='Number of best features to extract from each image, Default:100')
 
 	Args = Parser.parse_args()
@@ -102,7 +102,7 @@ def main():
 	Save ANMS output as anms.png
 	"""
 	amns = []
-	n_best = 200
+	n_best = NumFeatures
 	ris = []
 	best_corners = []
 
