@@ -155,7 +155,22 @@ def main():
 	Feature Descriptors
 	Save Feature Descriptor output as FD.png
 	"""
+	
+	descriptors = []
 
+	for i in range(len(images)):
+		image = images[i]
+		best_corners = ris[i]
+		for j in range(len(best_corners)):
+			good_corner = best_corners[j]
+			x = good_corner[0]
+			y = good_corner[1]
+			desc_matrix = image[x-20:x+20,y-20:y+20]
+			print(desc_matrix)
+#			blur = cv2.GaussianBlur(desc_matrix, (5,5), 1)
+#			print(blur)
+#			sub = cv2.resize(blur, (8,8))
+#			print(sub)
 	"""
 	Feature Matching
 	Save Feature Matching output as matching.png
