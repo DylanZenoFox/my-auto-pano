@@ -16,20 +16,39 @@ import numpy as np
 # Don't generate pyc codes
 sys.dont_write_bytecode = True
 
-def HomographyModel(Img, ImageSize, MiniBatchSize):
+def HomographyModel(Img, PatchSize, MiniBatchSize):
     """
     Inputs: 
     Img is a MiniBatch of the current image
-    ImageSize - Size of the Image
+    PatchSize - Size of the Patch
     Outputs:
-    prLogits - logits output of the network
-    prSoftMax - softmax output of the network
+    H4Pt - Predicted point deviations
     """
 
     #############################
     # Fill your network here!
     #############################
-   
+
+    conv1 = tf.layers.conv2d(inputs= Img, filters= 32, kernel_size=3, strides = 1, padding="same", data_format = "channels_last", activation="relu")
+    batch_norm1 = tf.layers.batch_normalization(inputs = conv1)
+    conv2 = tf.layers.conv2d(inputs= batch_norm1, filters= 32, kernel_size=3, strides = 1, padding="same", data_format = "channels_last", activation="relu")
+    batch_norm2 = tf.layers.batch_normalization(inputs = conv2)
+    max_pool1 = tf.layers.max_pooling2d(inputs = batch_norm2,pool_size=2, strides=2, data_format = "channels_last", padding="same")
+    conv3 = tf.layers.conv2d(inputs= max_pool1, filters= 64, kernel_size=3, strides = 1, padding="same", data_format = "channels_last", activation="relu")
+    batch_norm3 = tf.layers.batch_normalization(inputs = conv3)
+    conv4 = tf.layers.conv2d(inputs= batch_norm3, filters= 64, kernel_size=3, strides = 1, padding="same", data_format = "channels_last", activation="relu")
+    batch_norm4 = tf.layers.batch_normalization(inputs = conv4)
+    max_pool2 = tf.layers.max_pooling2d(inputs = batch_norm4,pool_size=2, strides=2, data_format = "channels_last", padding = "same")
+    conv5 = tf.layers.conv2d(inputs= max_pool2, filters= 64, kernel_size=3, strides = 1, padding="same", data_format = "channels_last", activation="relu")
+    batch_norm5 = tf.layers.batch_normalization(inputs = conv5)
+    conv6 = tf.layers.conv2d(inputs= batch_norm5, filters= 64, kernel_size=3, strides = 1, padding="same", data_format = "channels_last", activation="relu")
+    batch_norm6 = tf.layers.batch_normalization(inputs = conv6)
+    shape = batch_norm6.get_shape().as_list()
+    flatten = tf.reshape(batch_norm6, [MiniBatchSize, tf.shape(batch_norm6)[1] * tf.shape(batch_norm6)[2] * tf.shape(batch_norm6)[3]])
+    dense1 = tf.layers.dense(inputs = flatten, units = 128, activation="relu")
+    dense2 = tf.layers.dense(inputs= dense1, units = 8, activation = None)   
+
+    H4Pt = dense2
 
     return H4Pt
 

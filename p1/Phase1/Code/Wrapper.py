@@ -36,7 +36,7 @@ def main():
 	# NumFeatures = Args.NumFeatures
 
 	Parser = argparse.ArgumentParser()
-	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set2", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
+	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set1", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
 	Parser.add_argument('--NumFeatures', default=100,type=int ,help='Number of best features to extract from each image, Default:100')
 
 	Args = Parser.parse_args()
@@ -172,7 +172,7 @@ def main():
 			good_corner = best_corners[j]
 			x = good_corner[0]
 			y = good_corner[1]
-			desc_matrix = image[x-19:x+20,y-19:y+20]
+			desc_matrix = image[x-20:x+20,y-20:y+20]
 
 			blur = cv2.GaussianBlur(desc_matrix, (5,5), 1)
 
@@ -250,11 +250,6 @@ def main():
 			kp1 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[0]]
 			kp2 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[1]]
 
-
-
-			print(kp1)
-			print(kp2)
-
 			#kp1 = cv2.KeyPoint_convert(match_lists[0])
 			#kp2 = cv2.KeyPoint_convert(match_lists[1])
 			distances = match_lists[2]
@@ -263,9 +258,9 @@ def main():
 				# convert the distances to DMatches for use with drawMatches
 				Dmatches.append(cv2.DMatch(k,k,distances[k]))
 			drawn_matches = drawMatches(images[j],kp2,images[i],kp1,Dmatches)
-			#drawn_matches = cv2.drawMatches(images[j],kp2,images[i],kp1,Dmatches)
-			cv2.imshow("matches", drawn_matches)
-			cv2.waitKey(0)
+			#drawn_matches = cv2.drawMatches(images[j],kp2,images[i],kp1,Dmatches,None)
+			#cv2.imshow("matches", drawn_matches)
+			#cv2.waitKey(0)
 
 	"""
 	Refine: RANSAC, Estimate Homography
