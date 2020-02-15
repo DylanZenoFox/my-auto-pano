@@ -107,9 +107,11 @@ def main():
 	best_corners = []
 
 	for i in range(len(corners)):
+		x_max = corners[i].shape[0]
+		y_max = corners[i].shape[1]
 		amns.append([])
-		for j in range(corners[i].shape[0]):
-			for k in range(corners[i].shape[1]):
+		for j in range(20,x_max-20):
+			for k in range(20,y_max-20):
 				if corners[i][j][k] > 0.0:
 #					print((j,k,corners[i][j][k]))
 					amns[i].append((j,k,corners[i][j][k]))
@@ -155,10 +157,11 @@ def main():
 	Feature Descriptors
 	Save Feature Descriptor output as FD.png
 	"""
-	
+
 	descriptors = []
 
 	for i in range(len(images)):
+		descriptors.append([])
 		image = images[i]
 		best_corners = ris[i]
 		for j in range(len(best_corners)):
@@ -166,16 +169,79 @@ def main():
 			x = good_corner[0]
 			y = good_corner[1]
 			desc_matrix = image[x-20:x+20,y-20:y+20]
-			print(desc_matrix)
-#			blur = cv2.GaussianBlur(desc_matrix, (5,5), 1)
-#			print(blur)
-#			sub = cv2.resize(blur, (8,8))
-#			print(sub)
+
+			blur = cv2.GaussianBlur(desc_matrix, (5,5), 1)
+
+			sub = cv2.resize(blur, (8,8))
+
+			flat = sub.flatten()
+
+			mean = np.mean(flat)
+			mean_0 = flat - mean
+
+			std = np.std(mean_0)
+			std_1 = mean_0/std
+
+			descriptors[i].append(((x,y),std_1))
+
+
 	"""
 	Feature Matching
 	Save Feature Matching output as matching.png
 	"""
 
+	matches = {}
+	threshold = .1
+
+	for i in range(len(descriptors)):
+		for j in range(i+1,len(descriptors)):
+			# each pair of images will have 3 lists where the first list is a list
+			# of points in image 1, the second is a list of corresponding matching
+			# points in image 2 and the third is a list of corresponding distances of that match
+			matches.update({(i,j):[[],[],[]]})
+			for m in range(len(descriptors[i])):
+				best_distance = 5000
+				best_point = None
+				second_best_distance = 10000
+				second_best_point = None
+				# for each corner m in image i, look at each corner n in image j
+				# if the distance of those descriptors is less than m's distance
+				# to any other n, save that distance and n
+				for n in range(len(descriptors[j])):
+					if (descriptors[i][m][0] not in matches[(i,j)][0] and \
+					descriptors[j][n][0] not in matches[(i,j)][1]):
+						difference = descriptors[i][m][1] - descriptors[j][n][1]
+						square = np.square(difference)
+						distance = np.sum(square)
+						if distance < best_distance:
+							second_best_distance = best_distance
+							second_best_point = best_point
+							best_distance = distance
+							best_point = n
+
+				# for each corner m in image i, if the ratio of its distance
+				# to the best corner n of image j is less than a threshold,
+				# save those points as a match
+				if best_distance/second_best_distance < threshold:
+					matches[(i,j)][0].append(descriptors[i][m][0])
+					matches[(i,j)][1].append(descriptors[j][best_point][0])
+					matches[(i,j)][2].append(best_distance)
+
+
+	for i in range(len(descriptors)):
+		for j in range(i+1, len(descriptors)):
+			match_lists = matches[(i,j)]
+			# convert the points into KeyPoints for use with drawMatches
+			kp1 = cv2.KeyPoint_convert(match_lists[0])
+			kp2 = cv2.KeyPoint_convert(match_lists[1])
+			distances = match_lists[2]
+			Dmatches = []
+			for k in range(len(kp1)):
+				# convert the distances to DMatches for use with drawMatches
+				Dmatches.append(cv2.DMatch(k,k,distances[k]))
+			drawn_matches = cv2.drawMatches(images[i],kp1,images[j],kp2,Dmatches,None)
+			cv2.imshow("matches", drawn_matches)
+			cv2.waitKey(0)
 
 	"""
 	Refine: RANSAC, Estimate Homography
