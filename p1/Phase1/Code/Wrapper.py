@@ -36,12 +36,14 @@ def main():
 	# NumFeatures = Args.NumFeatures
 
 	Parser = argparse.ArgumentParser()
-	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set2", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
+	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set3", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
 	Parser.add_argument('--NumFeatures', default=100,type=int ,help='Number of best features to extract from each image, Default:100')
+	Parser.add_argument('--System', default="mac", help="Sets system for visualization, Options: 'linux', 'mac'")
 
 	Args = Parser.parse_args()
 	NumFeatures = Args.NumFeatures
 	ImageSetBasePath = Args.ImageSetBasePath
+	System = Args.System
 
 
 	"""
@@ -153,10 +155,6 @@ def main():
 		cv2.waitKey(0)
 
 
-
-
-	
-
 	"""
 	Feature Descriptors
 	Save Feature Descriptor output as FD.png
@@ -172,7 +170,7 @@ def main():
 			good_corner = best_corners[j]
 			x = good_corner[0]
 			y = good_corner[1]
-			desc_matrix = image[x-19:x+20,y-19:y+20]
+			desc_matrix = image[x-20:x+20,y-20:y+20]
 
 			blur = cv2.GaussianBlur(desc_matrix, (5,5), 1)
 
@@ -247,23 +245,29 @@ def main():
 
 			print(match_lists)
 
-			kp1 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[0]]
-			kp2 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[1]]
+			kp1 = []
+			kp2 = []
 
+			if System == "linux":
+				kp1 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[0]]
+				kp2 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[1]]
 
+			if System == "mac":
+				kp1 = cv2.KeyPoint_convert([(x,y) for (y,x) in match_lists[0]])
+				kp2 = cv2.KeyPoint_convert([(x,y) for (y,x) in match_lists[1]])
 
-			print(kp1)
-			print(kp2)
-
-			#kp1 = cv2.KeyPoint_convert(match_lists[0])
-			#kp2 = cv2.KeyPoint_convert(match_lists[1])
 			distances = match_lists[2]
 			Dmatches = []
 			for k in range(len(kp1)):
 				# convert the distances to DMatches for use with drawMatches
 				Dmatches.append(cv2.DMatch(k,k,distances[k]))
-			drawn_matches = drawMatches(images[j],kp2,images[i],kp1,Dmatches)
-			#drawn_matches = cv2.drawMatches(images[j],kp2,images[i],kp1,Dmatches)
+
+			if System == "linux":
+				drawn_matches = drawMatches(images[j],kp2,images[i],kp1,Dmatches)
+
+			if System == "mac":
+				drawn_matches = cv2.drawMatches(images[i],kp1,images[j],kp2,Dmatches,None)
+
 			cv2.imshow("matches", drawn_matches)
 			cv2.waitKey(0)
 
