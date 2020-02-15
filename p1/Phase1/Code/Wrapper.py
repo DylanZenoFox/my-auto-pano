@@ -21,6 +21,8 @@ import numpy as np
 import cv2
 import argparse
 import os
+import matplotlib.pyplot as plt
+from Utils import *
 # Add any python libraries here
 
 
@@ -34,8 +36,8 @@ def main():
 	# NumFeatures = Args.NumFeatures
 
 	Parser = argparse.ArgumentParser()
-	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set1", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
-	Parser.add_argument('--NumFeatures', default=100, help='Number of best features to extract from each image, Default:100')
+	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set2", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
+	Parser.add_argument('--NumFeatures', default=100,type=int ,help='Number of best features to extract from each image, Default:100')
 
 	Args = Parser.parse_args()
 	NumFeatures = Args.NumFeatures
@@ -170,7 +172,7 @@ def main():
 			good_corner = best_corners[j]
 			x = good_corner[0]
 			y = good_corner[1]
-			desc_matrix = image[x-20:x+20,y-20:y+20]
+			desc_matrix = image[x-19:x+20,y-19:y+20]
 
 			blur = cv2.GaussianBlur(desc_matrix, (5,5), 1)
 
@@ -186,6 +188,14 @@ def main():
 
 			descriptors[i].append(((x,y),std_1))
 
+			#Checking feature correctness
+
+			#print(std_1.size)
+			#plt.imshow(np.reshape(std_1,(8,8)))
+			#plt.show()
+
+
+
 
 	"""
 	Feature Matching
@@ -193,7 +203,7 @@ def main():
 	"""
 
 	matches = {}
-	threshold = .1
+	threshold = .5
 
 	for i in range(len(descriptors)):
 		for j in range(i+1,len(descriptors)):
@@ -234,14 +244,26 @@ def main():
 		for j in range(i+1, len(descriptors)):
 			match_lists = matches[(i,j)]
 			# convert the points into KeyPoints for use with drawMatches
-			kp1 = cv2.KeyPoint_convert(match_lists[0])
-			kp2 = cv2.KeyPoint_convert(match_lists[1])
+
+			print(match_lists)
+
+			kp1 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[0]]
+			kp2 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[1]]
+
+
+
+			print(kp1)
+			print(kp2)
+
+			#kp1 = cv2.KeyPoint_convert(match_lists[0])
+			#kp2 = cv2.KeyPoint_convert(match_lists[1])
 			distances = match_lists[2]
 			Dmatches = []
 			for k in range(len(kp1)):
 				# convert the distances to DMatches for use with drawMatches
 				Dmatches.append(cv2.DMatch(k,k,distances[k]))
-			drawn_matches = cv2.drawMatches(images[i],kp1,images[j],kp2,Dmatches,None)
+			drawn_matches = drawMatches(images[j],kp2,images[i],kp1,Dmatches)
+			#drawn_matches = cv2.drawMatches(images[j],kp2,images[i],kp1,Dmatches)
 			cv2.imshow("matches", drawn_matches)
 			cv2.waitKey(0)
 
