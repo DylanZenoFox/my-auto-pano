@@ -37,6 +37,10 @@ def SetupAll(BasePath, CheckPointPath):
     # Setup DirNames
     DirNamesTrain =  SetupDirNames(BasePath)
 
+    # Read and Setup Labels
+    LabelsPathTrain = './TxtFiles/LabelsTrain.txt'
+    TrainLabels = ReadLabels(LabelsPathTrain)
+
     # If CheckPointPath doesn't exist make the path
     if(not (os.path.isdir(CheckPointPath))):
        os.makedirs(CheckPointPath)
@@ -46,9 +50,14 @@ def SetupAll(BasePath, CheckPointPath):
     # Number of passes of Val data with MiniBatchSize 
     NumTestRunsPerEpoch = 5
     
+    # Image Input Shape
+    ImageSize = [32, 32, 3]
     NumTrainSamples = len(DirNamesTrain)
 
-    return DirNamesTrain, SaveCheckPoint, NumTrainSamples
+    # Number of classes
+    NumClasses = 10
+
+    return DirNamesTrain, SaveCheckPoint, ImageSize, NumTrainSamples, TrainLabels, NumClasses
 
 def ReadLabels(LabelsPathTrain):
     if(not (os.path.isfile(LabelsPathTrain))):
