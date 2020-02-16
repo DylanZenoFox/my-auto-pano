@@ -21,6 +21,7 @@ import numpy as np
 import cv2
 import argparse
 import os
+import random
 import matplotlib.pyplot as plt
 from Utils import *
 # Add any python libraries here
@@ -36,7 +37,7 @@ def main():
 	# NumFeatures = Args.NumFeatures
 
 	Parser = argparse.ArgumentParser()
-	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set3", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
+	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set1", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
 	Parser.add_argument('--NumFeatures', default=100,type=int ,help='Number of best features to extract from each image, Default:100')
 	Parser.add_argument('--System', default="mac", help="Sets system for visualization, Options: 'linux', 'mac'")
 
@@ -243,8 +244,6 @@ def main():
 			match_lists = matches[(i,j)]
 			# convert the points into KeyPoints for use with drawMatches
 
-			print(match_lists)
-
 			kp1 = []
 			kp2 = []
 
@@ -274,6 +273,139 @@ def main():
 	"""
 	Refine: RANSAC, Estimate Homography
 	"""
+
+	n_max = 1000
+	tau = 1000
+	threshold = .85
+
+	filtered_matches = {}
+
+	for image_pair in matches:
+		filtered_matches.update({image_pair:[[],[],[],[]]})
+
+		best_h = np.zeros((3,3))
+		best_in_num = 0
+		best_inliers_1 = []
+		best_inliers_2 = []
+		best_distances = []
+		best_inliers_prime = []
+
+		num_matches = len(matches[image_pair][0])
+		im1_points = matches[image_pair][0]
+		im2_points = matches[image_pair][1]
+		im_distances = matches[image_pair][2]
+		for n in range(n_max):
+			test_points = random.sample(range(num_matches),4)
+			im1_test = [im1_points[num] for num in test_points]
+			im2_test = [im2_points[num] for num in test_points]
+
+			im1_array = np.zeros((4,2),dtype=np.float32)
+			im2_array = np.zeros((4,2),dtype=np.float32)
+
+			for point in range(4):
+				for coord in range(2):
+					im1_array[point][coord] = im1_test[point][coord]
+					im2_array[point][coord] = im2_test[point][coord]
+
+			h = cv2.getPerspectiveTransform(im1_array, im2_array)
+
+			in_num = 0
+			inliers_1 = []
+			inliers_2 = []
+			distances = []
+			inliers_prime = []
+			for i in range(len(im1_points)):
+				pi = np.array([[im1_points[i][0]],[im1_points[i][1]],[1]],dtype=np.float32)
+				pi_prime = np.array([[im2_points[i][0]],[im2_points[i][1]],[1]],dtype=np.float32)
+				hpi = np.dot(h,pi)
+				difference = np.subtract(hpi,pi_prime)
+				square = np.square(difference)
+				sum = np.sum(square)
+				if sum < tau:
+					in_num += 1
+					inliers_1.append(im1_points[i])
+					inliers_2.append(im2_points[i])
+					distances.append(im_distances[i])
+					inliers_prime.append((hpi.item(0),hpi.item(1)))
+
+			if in_num > best_in_num:
+				best_h = h
+				best_in_num = in_num
+				best_inliers_1 = inliers_1
+				best_inliers_2 = inliers_2
+				best_distances = distances
+				best_inliers_prime = inliers_prime
+				if best_in_num/len(im1_points) > threshold:
+					break
+
+		filtered_matches[image_pair][0] = best_inliers_1
+		filtered_matches[image_pair][1] = best_inliers_2
+		filtered_matches[image_pair][2] = best_distances
+		filtered_matches[image_pair][3] = best_inliers_prime
+
+	for i in range(len(descriptors)):
+		for j in range(i+1, len(descriptors)):
+			match_lists = filtered_matches[(i,j)]
+			# convert the points into KeyPoints for use with drawMatches
+
+			kp1 = []
+			kp2 = []
+
+			if System == "linux":
+				kp1 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[0]]
+				kp2 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[1]]
+
+			if System == "mac":
+				kp1 = cv2.KeyPoint_convert([(x,y) for (y,x) in match_lists[0]])
+				kp2 = cv2.KeyPoint_convert([(x,y) for (y,x) in match_lists[1]])
+
+			distances = match_lists[2]
+			Dmatches = []
+			for k in range(len(kp1)):
+			# convert the distances to DMatches for use with drawMatches
+				Dmatches.append(cv2.DMatch(k,k,distances[k]))
+
+			if System == "linux":
+				drawn_matches = drawMatches(images[j],kp2,images[i],kp1,Dmatches)
+
+			if System == "mac":
+				drawn_matches = cv2.drawMatches(images[i],kp1,images[j],kp2,Dmatches,None)
+
+			cv2.imshow("matches", drawn_matches)
+			cv2.waitKey(0)
+
+	for i in range(len(descriptors)):
+		for j in range(i+1, len(descriptors)):
+			match_lists = filtered_matches[(i,j)]
+			print(match_lists[3])
+			# convert the points into KeyPoints for use with drawMatches
+
+			kp1 = []
+			kp2 = []
+
+			if System == "linux":
+				kp1 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[0]]
+				kp2 = [cv2.KeyPoint(point[1], point[0], 10) for point in match_lists[3]]
+
+			if System == "mac":
+				kp1 = cv2.KeyPoint_convert([(x,y) for (y,x) in match_lists[0]])
+				kp2 = cv2.KeyPoint_convert([(x,y) for (y,x) in match_lists[3]])
+
+			distances = match_lists[2]
+			Dmatches = []
+			for k in range(len(kp1)):
+			# convert the distances to DMatches for use with drawMatches
+				Dmatches.append(cv2.DMatch(k,k,distances[k]))
+
+			if System == "linux":
+				drawn_matches = drawMatches(images[j],kp2,images[i],kp1,Dmatches)
+
+			if System == "mac":
+				drawn_matches = cv2.drawMatches(images[i],kp1,images[j],kp2,Dmatches,None)
+
+			cv2.imshow("matches", drawn_matches)
+			cv2.waitKey(0)
+
 
 
 	"""
