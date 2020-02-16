@@ -44,7 +44,7 @@ from Misc.TFSpatialTransformer import *
 sys.dont_write_bytecode = True
 
 	
-def GenerateBatch(BasePath, DirNamesTrain, PatchSize, MiniBatchSize):
+def GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSize):
 	"""
 	Inputs: 
 	BasePath - Path to COCO folder without "/" at the end
@@ -76,12 +76,20 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, MiniBatchSize):
 		# Add any standardization or data augmentation here!
 		##########################################################
 
-		I1 = cv2.imread(RandImageName)
+		I1 = cv2.imread(RandImageName, cv2.IMREAD_GRAYSCALE)
 
-		Py = random.randint(PatchSize + 50, np.shape(I1)[0] - (PatchSize + 50))
-		Px = random.randint(PatchSize + 50, np.shape(I1)[1] - (PatchSize + 50))
+		I1 = cv2.resize(I1, (320,240))
 
-		perturbations = random.sample(xrange(-20, 20),8)
+		Py = random.randint(Perturbation, np.shape(I1)[0] - (PatchSize + Perturbation))
+		Px = random.randint(Perturbation, np.shape(I1)[1] - (PatchSize + Perturbation))
+
+		perturbations = random.sample(xrange(-Perturbation, Perturbation),8)
+
+
+		#Py = random.randint(50, np.shape(I1)[0] - (PatchSize + 50))
+		#Px = random.randint(50, np.shape(I1)[1] - (PatchSize + 50))
+
+		#perturbations = random.sample(xrange(-20, 20),8)
 
 		originalPatchInd = np.array([Px, Py, Px+PatchSize, Py, Px, Py + PatchSize, Px + PatchSize, Py + PatchSize]).reshape((4,2))
 
@@ -100,22 +108,29 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, MiniBatchSize):
 		perturbedPatch = warpedImage[newPoints[0,1]:newPoints[0,1] + PatchSize,newPoints[0,0]:newPoints[0,0] + PatchSize]
 
 
-		cv2.imshow("image", I1)
-		cv2.waitKey(0)
+		# cv2.imshow("image", I1)
+		# cv2.waitKey(0)
 
 
-		cv2.imshow("warped image", warpedImage)
-		cv2.waitKey(0)
+		# cv2.imshow("warped image", warpedImage)
+		# cv2.waitKey(0)
 
-		cv2.imshow("originalPatch", originalPatch)
-		cv2.waitKey(0)
+		# cv2.imshow("originalPatch", originalPatch)
+		# cv2.waitKey(0)
 
-		cv2.imshow("perturbedPatch", perturbedPatch)
-		cv2.waitKey(0)
+		# cv2.imshow("perturbedPatch", perturbedPatch)
+		# cv2.waitKey(0)
 
-		GroundTruth = np.array(perturbations)
+		GroundTruth = np.array(perturbations).astype(np.float32)
+		GroundTruth = GroundTruth/Perturbation
 
-		combinedPatch = np.concatenate((originalPatch, perturbedPatch), axis=2)
+		#print(np.shape(originalPatch))
+		#print(np.shape(perturbedPatch))
+		#print(GroundTruth)
+
+		combinedPatch = np.concatenate((originalPatch[:,:,None], perturbedPatch[:,:,None]), axis=2).astype(np.float32)
+
+		combinedPatch /= 255
 
 		# Append All Images and Mask
 		PatchesBatch.append(combinedPatch)
@@ -136,7 +151,7 @@ def PrettyPrint(NumEpochs, DivTrain, MiniBatchSize, NumTrainSamples, LatestFile)
 		print('Loading latest checkpoint with the name ' + LatestFile)              
 
 	
-def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSize,
+def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSize, Perturbation,
 				   NumEpochs, MiniBatchSize, SaveCheckPoint, CheckPointPath,
 				   DivTrain, LatestFile, BasePath, LogsPath, ModelType):
 	"""
@@ -163,22 +178,23 @@ def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSiz
 
 	H4Pt = HomographyModel(ImgPH, PatchSize, MiniBatchSize)
 
+
 	with tf.name_scope('Loss'):
 		###############################################
 		# Fill your loss function of choice here!
 		###############################################
 		if(ModelType is not 'Unsup'):
-			loss = tf.nn.l2_loss(H4Pt - GroundTruthPH)
+			loss = tf.nn.l2_loss(H4Pt - GroundTruthPH)*2/8
 
 	with tf.name_scope('Adam'):
 		###############################################
 		# Fill your optimizer of choice here!
 		###############################################
-		Optimizer = tf.train.AdamOptimizer().minimize(loss)
+		Optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss)
 
 	# Tensorboard
 	# Create a summary to monitor loss tensor
-	tf.summary.scalar('LossEveryIter', loss)
+	tf.summary.scalar('LossEveryIter', loss/MiniBatchSize)
 	# tf.summary.image('Anything you want', AnyImg)
 	# Merge all summaries into a single operation
 	MergedSummaryOP = tf.summary.merge_all()
@@ -203,8 +219,11 @@ def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSiz
 		for Epochs in tqdm(range(StartEpoch, NumEpochs)):
 			NumIterationsPerEpoch = int(NumTrainSamples/MiniBatchSize/DivTrain)
 			for PerEpochCounter in tqdm(range(NumIterationsPerEpoch)):
-				I1Batch, LabelBatch = GenerateBatch(BasePath, DirNamesTrain, PatchSize, MiniBatchSize)
-				FeedDict = {ImgPH: I1Batch, LabelPH: LabelBatch}
+				PatchBatch, GroundTruthBatch = GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSize)
+
+				#print(GroundTruthBatch)
+
+				FeedDict = {ImgPH: PatchBatch, GroundTruthPH: GroundTruthBatch}
 				_, LossThisBatch, Summary = sess.run([Optimizer, loss, MergedSummaryOP], feed_dict=FeedDict)
 				
 				# Save checkpoint every some SaveCheckPoint's iterations
@@ -242,7 +261,9 @@ def main():
 	Parser.add_argument('--MiniBatchSize', type=int, default=1, help='Size of the MiniBatch to use, Default:1')
 	Parser.add_argument('--LoadCheckPoint', type=int, default=0, help='Load Model from latest Checkpoint from CheckPointsPath?, Default:0')
 	Parser.add_argument('--LogsPath', default='Logs/', help='Path to save Logs for Tensorboard, Default=Logs/')
-	Parser.add_argument('--PatchSize',type=int, default=100, help='Size for patch extraction, Default=100')
+	Parser.add_argument('--PatchSize',type=int, default=128, help='Size for patch extraction, Default=100')
+	Parser.add_argument('--Perturbation',type=int, default=32, help='Amount of perturbation of corners when generating data, Default=32')
+
 
 	Args = Parser.parse_args()
 	NumEpochs = Args.NumEpochs
@@ -254,6 +275,7 @@ def main():
 	LogsPath = Args.LogsPath
 	ModelType = Args.ModelType
 	PatchSize = Args.PatchSize
+	Perturbation = Args.Perturbation
 
 	# Setup all needed parameters including file reading
 	DirNamesTrain, SaveCheckPoint, NumTrainSamples = SetupAll(BasePath, CheckPointPath)
@@ -270,10 +292,10 @@ def main():
 	PrettyPrint(NumEpochs, DivTrain, MiniBatchSize, NumTrainSamples, LatestFile)
 
 	# Define PlaceHolder variables for Input and Predicted output
-	ImgPH = tf.placeholder(tf.float32, shape = (MiniBatchSize, PatchSize, PatchSize, 3))
+	ImgPH = tf.placeholder(tf.float32, shape = (MiniBatchSize, PatchSize, PatchSize, 2))
 	GroundTruthPH = tf.placeholder(tf.float32, shape=(MiniBatchSize, 8))
 	
-	TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain, NumTrainSamples, PatchSize,
+	TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain, NumTrainSamples, PatchSize, Perturbation,
 				   NumEpochs, MiniBatchSize, SaveCheckPoint, CheckPointPath,
 				   DivTrain, LatestFile, BasePath, LogsPath, ModelType)
 		
