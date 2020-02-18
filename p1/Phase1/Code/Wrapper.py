@@ -38,7 +38,7 @@ def main():
 
 	Parser = argparse.ArgumentParser()
 	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set1", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
-	Parser.add_argument('--NumFeatures', default=100,type=int ,help='Number of best features to extract from each image, Default:100')
+	Parser.add_argument('--NumFeatures', default=200,type=int ,help='Number of best features to extract from each image, Default:100')
 	Parser.add_argument('--System', default="mac", help="Sets system for visualization, Options: 'linux', 'mac'")
 
 	Args = Parser.parse_args()
@@ -295,6 +295,8 @@ def main():
 		im2_points = matches[image_pair][1]
 		im_distances = matches[image_pair][2]
 		for n in range(n_max):
+			if num_matches < 4:
+				continue
 			test_points = random.sample(range(num_matches),4)
 			im1_test = [im1_points[num] for num in test_points]
 			im2_test = [im2_points[num] for num in test_points]
@@ -418,10 +420,29 @@ def main():
 			image_a = images[i]
 			image_b = images[j]
 			h = match_lists[4]
+			print(h)
 
-			warp = cv2.warpPerspective(image_b, h, \
-			    (image_b.shape[1] + image_a.shape[1], image_b.shape[0]))
-			warp[0:image_a.shape[0],0:image_a.shape[1]] = image_a
+			min_pixel = np.float32([[0],[0],[1]])
+
+			offset = np.dot(np.linalg.inv(h),min_pixel)
+			x_shift = int(offset[0][0] * -1)
+			y_shift = int(offset[1][0] * -1)
+
+			print(x_shift)
+			print(y_shift)
+
+			warp = cv2.warpPerspective(image_a, np.linalg.inv(h), (700,900))
+			print(warp)
+			cv2.imshow("stich", warp)
+			cv2.waitKey(0)
+
+			T = np.float32([[1, 0, x_shift], [0, 1, y_shift]])
+
+			warp = cv2.warpAffine(warp, T, (700,900))
+			cv2.imshow("stitch", warp)
+			cv2.waitKey(0)
+
+			warp[0:image_b.shape[0],0:image_b.shape[1]] = image_b
 
 			cv2.imshow("stich", warp)
 			cv2.waitKey(0)
