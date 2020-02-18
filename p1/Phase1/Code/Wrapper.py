@@ -275,13 +275,13 @@ def main():
 	"""
 
 	n_max = 1000
-	tau = 1000
-	threshold = .85
+	tau = 100
+	threshold = .95
 
 	filtered_matches = {}
 
 	for image_pair in matches:
-		filtered_matches.update({image_pair:[[],[],[],[]]})
+		filtered_matches.update({image_pair:[[],[],[],[],[]]})
 
 		best_h = np.zeros((3,3))
 		best_in_num = 0
@@ -342,6 +342,7 @@ def main():
 		filtered_matches[image_pair][1] = best_inliers_2
 		filtered_matches[image_pair][2] = best_distances
 		filtered_matches[image_pair][3] = best_inliers_prime
+		filtered_matches[image_pair][4] = best_h
 
 	for i in range(len(descriptors)):
 		for j in range(i+1, len(descriptors)):
@@ -406,12 +407,26 @@ def main():
 			cv2.imshow("matches", drawn_matches)
 			cv2.waitKey(0)
 
-
-
 	"""
 	Image Warping + Blending
 	Save Panorama output as mypano.png
 	"""
+
+	for i in range(len(descriptors)):
+		for j in range(i+1, len(descriptors)):
+			match_lists = filtered_matches[(i,j)]
+			image_a = images[i]
+			image_b = images[j]
+			h = match_lists[4]
+
+			warp = cv2.warpPerspective(image_b, h, \
+			    (image_b.shape[1] + image_a.shape[1], image_b.shape[0]))
+			warp[0:image_a.shape[0],0:image_a.shape[1]] = image_a
+
+			cv2.imshow("stich", warp)
+			cv2.waitKey(0)
+
+
 
 if __name__ == '__main__':
 	main()
