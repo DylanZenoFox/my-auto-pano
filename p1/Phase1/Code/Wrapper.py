@@ -1,5 +1,7 @@
 #!/usr/bin/evn python
 
+#Arcticfox on stackexchange
+
 """
 CMSC733 Spring 2019: Classical and Deep Learning Approaches for
 Geometric Computer Vision
@@ -26,6 +28,22 @@ import matplotlib.pyplot as plt
 from Utils import *
 # Add any python libraries here
 
+def warpTwoImages(img1, img2, H):
+    '''warp img2 to img1 with homograph H'''
+    h1,w1 = img1.shape[:2]
+    h2,w2 = img2.shape[:2]
+    pts1 = np.float32([[0,0],[0,h1],[w1,h1],[w1,0]]).reshape(-1,1,2)
+    pts2 = np.float32([[0,0],[0,h2],[w2,h2],[w2,0]]).reshape(-1,1,2)
+    pts2_ = cv2.perspectiveTransform(pts2, H)
+    pts = np.concatenate((pts1, pts2_), axis=0)
+    [xmin, ymin] = np.int32(pts.min(axis=0).ravel() - 0.5)
+    [xmax, ymax] = np.int32(pts.max(axis=0).ravel() + 0.5)
+    t = [-xmin,-ymin]
+    Ht = np.array([[1,0,t[0]],[0,1,t[1]],[0,0,1]]) # translate
+
+    result = cv2.warpPerspective(img2, Ht.dot(H), (xmax-xmin, ymax-ymin))
+    result[t[1]:h1+t[1],t[0]:w1+t[0]] = img1
+    return result
 
 
 def main():
@@ -39,7 +57,7 @@ def main():
 	Parser = argparse.ArgumentParser()
 	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set1", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
 	Parser.add_argument('--NumFeatures', default=200,type=int ,help='Number of best features to extract from each image, Default:100')
-	Parser.add_argument('--System', default="mac", help="Sets system for visualization, Options: 'linux', 'mac'")
+	Parser.add_argument('--System', default="linux", help="Sets system for visualization, Options: 'linux', 'mac'")
 
 	Args = Parser.parse_args()
 	NumFeatures = Args.NumFeatures
@@ -340,11 +358,45 @@ def main():
 				if best_in_num/len(im1_points) > threshold:
 					break
 
+		new_h = np.zeros((3,3))
+		for i in range(100):
+			if best_in_num < 4:
+				break
+			test_points = random.sample(range(best_in_num),4)
+			im1_test = [best_inliers_1[num] for num in test_points]
+			im2_test = [best_inliers_2[num] for num in test_points]
+
+			im1_array = np.zeros((4,2),dtype=np.float32)
+			im2_array = np.zeros((4,2),dtype=np.float32)
+
+			for point in range(4):
+				for coord in range(2):
+					im1_array[point][coord] = im1_test[point][coord]
+					im2_array[point][coord] = im2_test[point][coord]
+
+			h = cv2.getPerspectiveTransform(im1_array, im2_array)
+
+			new_h = np.add(new_h,h)
+
+		print(new_h)
+		new_h = new_h * 0.01
+		print(new_h)
+
+		best_inliers_prime = []
+		for i in range(len(best_inliers_1)):
+			pi = np.array([[best_inliers_1[i][0]],[best_inliers_1[i][1]],[1]],dtype=np.float32)
+			pi_prime = np.array([[best_inliers_2[i][0]],[best_inliers_2[i][1]],[1]],dtype=np.float32)
+			hpi = np.dot(best_h,pi)
+			best_inliers_prime.append((hpi.item(0),hpi.item(1)))
+
 		filtered_matches[image_pair][0] = best_inliers_1
 		filtered_matches[image_pair][1] = best_inliers_2
 		filtered_matches[image_pair][2] = best_distances
 		filtered_matches[image_pair][3] = best_inliers_prime
 		filtered_matches[image_pair][4] = best_h
+
+		print(best_h)
+
 
 	for i in range(len(descriptors)):
 		for j in range(i+1, len(descriptors)):
@@ -420,32 +472,39 @@ def main():
 			image_a = images[i]
 			image_b = images[j]
 			h = match_lists[4]
+
+			warp = warpTwoImages(image_a, image_b, h)
+			cv2.imshow("stitch_warp", warp)
+			cv2.waitKey(0)
 			print(h)
 
-			min_pixel = np.float32([[0],[0],[1]])
+#			min_pixel = np.float32([[0],[0],[1]])
 
-			offset = np.dot(np.linalg.inv(h),min_pixel)
-			x_shift = int(offset[0][0] * -1)
-			y_shift = int(offset[1][0] * -1)
+#			offset = np.dot(np.linalg.inv(h),min_pixel)
+#			x_shift = int(offset[0][0] * -1)
+#			y_shift = int(offset[1][0] * -1)
 
-			print(x_shift)
-			print(y_shift)
+#			print(x_shift)
+#			print(y_shift)
 
-			warp = cv2.warpPerspective(image_a, np.linalg.inv(h), (700,900))
-			print(warp)
-			cv2.imshow("stich", warp)
-			cv2.waitKey(0)
+#			warp = cv2.warpPerspective(image_a, np.linalg.inv(h), (700,900))
+#			print(warp)
+#			cv2.imshow("stitch", warp)
+#			cv2.waitKey(0)
 
-			T = np.float32([[1, 0, x_shift], [0, 1, y_shift]])
+#			cv2.imshow("image_b", image_b)
+#			cv2.waitKey(0)
 
-			warp = cv2.warpAffine(warp, T, (700,900))
-			cv2.imshow("stitch", warp)
-			cv2.waitKey(0)
+	#		T = np.float32([[1, 0, x_shift], [0, 1, y_shift]])
 
-			warp[0:image_b.shape[0],0:image_b.shape[1]] = image_b
+	#		warp = cv2.warpAffine(warp, T, (700,900))
+	#		cv2.imshow("stitch", warp)
+	#		cv2.waitKey(0)
 
-			cv2.imshow("stich", warp)
-			cv2.waitKey(0)
+	#		warp[0:image_b.shape[0],0:image_b.shape[1]] = image_b
+
+	#		cv2.imshow("stitch", warp)
+	#		cv2.waitKey(0)
 
 
 
