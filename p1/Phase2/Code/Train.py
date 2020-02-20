@@ -368,10 +368,18 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 
 					H4PtValLossSum += H4PtLossThisBatch[0]/MiniBatchSize
 
+					print("Epoch " + str(PerEpochCounter) + " H4Pt Loss: " + str(H4PtLossThisBatch[0]/MiniBatchSize))
+
 				else:
 					H4PtLossThisBatch, L1LossThisBatch = sess.run([H4Ptloss,L1loss], feed_dict=FeedDict)
 					H4PtValLossSum += H4PtLossThisBatch/MiniBatchSize
 					L1ValLossSum += L1LossThisBatch/MiniBatchSize
+					print("Epoch " + str(PerEpochCounter) + " H4Pt Val Loss: " + str(H4PtLossThisBatch[0]/MiniBatchSize))
+					print("Epoch " + str(PerEpochCounter) + " L1 Val Loss: " + str(H4PtLossThisBatch[0]/MiniBatchSize))
+
+
+
+
 
 
 
