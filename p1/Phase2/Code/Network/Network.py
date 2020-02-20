@@ -114,7 +114,7 @@ def UnsupervisedHomographyModel(Img, FullImage, PatchSize, MiniBatchSize, Origin
     #print(homography)
 
 
-    warpedImage = batch_transformer(FullImage[:,:,:,None], homography[:,None,:], (1000, 1000))
+    warpedImage = batch_transformer(FullImage[:,:,:,None], homography[:,None,:], (500, 500))
 
     #correct = batch_transformer(FullImage[:,:,:,None], CorrectMatrix[:,None,:], (1000, 1000))
 

@@ -374,8 +374,7 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 					H4PtLossThisBatch, L1LossThisBatch = sess.run([H4Ptloss,L1loss], feed_dict=FeedDict)
 					H4PtValLossSum += H4PtLossThisBatch/MiniBatchSize
 					L1ValLossSum += L1LossThisBatch/MiniBatchSize
-					print("Epoch " + str(PerEpochCounter) + " H4Pt Val Loss: " + str(H4PtLossThisBatch[0]/MiniBatchSize))
-					print("Epoch " + str(PerEpochCounter) + " L1 Val Loss: " + str(H4PtLossThisBatch[0]/MiniBatchSize))
+
 
 
 
@@ -391,10 +390,16 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 				Summary = sess.run(performance, feed_dict={valH4PtLossPerEpoch_ph:H4PtValLossSum/NumIterationsPerEpochVal})
 				Writer.add_summary(Summary,Epochs)
 				Writer.flush()
+
+				print("Epoch " + str(Epochs) + " H4Pt Loss: " + str(H4PtValLossSum/NumIterationsPerEpochVal))
+				
 			else:
 				Summary = sess.run(performance, feed_dict={valH4PtLossPerEpoch_ph:H4PtValLossSum/NumIterationsPerEpochVal, valL1LossPerEpoch_ph:L1ValLossSum/NumIterationsPerEpochVal})
 				Writer.add_summary(Summary,Epochs)
 				Writer.flush()
+
+				print("Epoch " + str(Epochs) + " H4Pt Val Loss: " + str(H4PtValLossSum/NumIterationsPerEpochVal))
+				print("Epoch " + str(Epochs) + " L1 Val Loss: " + str(L1ValLossSum/NumIterationsPerEpochVal))
 			
 
 def main():
