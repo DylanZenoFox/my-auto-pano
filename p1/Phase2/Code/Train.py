@@ -239,7 +239,7 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 		if(ModelType == 'Sup'):
 			Optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(H4Ptloss)
 		else:
-			Optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(L1loss)
+			Optimizer = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(L1loss)
 
 	# Tensorboard
 	# Create a summary to monitor loss tensor
@@ -292,9 +292,6 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 				if(ModelType == 'Sup'):
 					_, H4PtLossThisBatch, Summary, H4Pt_out = sess.run([Optimizer, H4Ptloss, MergedSummaryOP, H4Pt], feed_dict=FeedDict)
 
-
-
-
 				else:
 					_, H4PtLossThisBatch, L1LossThisBatch, Summary = sess.run([Optimizer, H4Ptloss,L1loss, MergedSummaryOP], feed_dict=FeedDict)
 
@@ -322,13 +319,13 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 				# cv2.waitKey(0)
 
 
-				# #Warped Patch
-				# cv2.imshow("",testOutput[3][0])
-				# cv2.waitKey(0)
+				#Warped Patch
+				#cv2.imshow("",testOutput[3][0])
+				#cv2.waitKey(0)
 
-				# 	# Ground Truth
-				# 	cv2.imshow("", np.array(PatchBatch)[0,:,:,1])
-				# 	cv2.waitKey(0)
+				# Ground Truth
+				#cv2.imshow("", np.array(PatchBatch)[0,:,:,1])
+				#cv2.waitKey(0)
 
 				
 				# Save checkpoint every some SaveCheckPoint's iterations
@@ -373,8 +370,8 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 
 				else:
 					H4PtLossThisBatch, L1LossThisBatch = sess.run([H4Ptloss,L1loss], feed_dict=FeedDict)
-					H4PtValLossSum += H4PtLossThisBatch[0]/MiniBatchSize
-					L1ValLossSum += L1LossThisBatch[0]/MiniBatchSize
+					H4PtValLossSum += H4PtLossThisBatch/MiniBatchSize
+					L1ValLossSum += L1LossThisBatch/MiniBatchSize
 
 
 
