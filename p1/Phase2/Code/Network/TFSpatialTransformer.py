@@ -50,7 +50,7 @@ def transformer(U, theta, out_size, name='SpatialTransformer', **kwargs):
 
     """
     
-    scale_h= True  
+    scale_h= False
 
     def _repeat(x, n_repeats):
         # Process 
@@ -181,6 +181,7 @@ def transformer(U, theta, out_size, name='SpatialTransformer', **kwargs):
 
     def _transform(theta, input_dim, out_size, scale_h):
         with tf.variable_scope('_transform'):
+
             num_batch = tf.shape(input_dim)[0]
             height = tf.shape(input_dim)[1]
             width = tf.shape(input_dim)[2]

@@ -38,7 +38,7 @@ import string
 from termcolor import colored, cprint
 import math as m
 from tqdm import tqdm
-from Misc.TFSpatialTransformer import *
+from Network.TFSpatialTransformer import *
 
 # Don't generate pyc codes
 sys.dont_write_bytecode = True
@@ -58,8 +58,10 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSiz
 	I1Batch - Batch of images
 	LabelBatch - Batch of one-hot encoded labels 
 	"""
+	ImagesBatch = []
 	PatchesBatch = []
 	GroundTruthBatch = []
+	OriginalCornersBatch = []
 	
 	ImageNum = 0
 	while ImageNum < MiniBatchSize:
@@ -80,6 +82,8 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSiz
 
 		I1 = cv2.resize(I1, (320,240))
 
+
+
 		Py = random.randint(Perturbation, np.shape(I1)[0] - (PatchSize + Perturbation))
 		Px = random.randint(Perturbation, np.shape(I1)[1] - (PatchSize + Perturbation))
 
@@ -95,8 +99,21 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSiz
 
 		perturbedPatchInd = originalPatchInd + np.array(perturbations).reshape((4,2))
 
+		#cv2.circle(I1, tuple(originalPatchInd[0]), 2, 255, -1)
+		#cv2.circle(I1, tuple(originalPatchInd[1]), 2, 255, -1)
+		#cv2.circle(I1, tuple(originalPatchInd[2]), 2, 255, -1)
+		#cv2.circle(I1, tuple(originalPatchInd[3]), 2, 255, -1)
+
+		#cv2.circle(I1, tuple(perturbedPatchInd[0]), 2, 0, -1)
+		#cv2.circle(I1, tuple(perturbedPatchInd[1]), 2, 0, -1)
+		#cv2.circle(I1, tuple(perturbedPatchInd[2]), 2, 0, -1)
+		#cv2.circle(I1, tuple(perturbedPatchInd[3]), 2, 0, -1)
+
 
 		matrix = cv2.getPerspectiveTransform(originalPatchInd.astype(np.float32), perturbedPatchInd.astype(np.float32))
+
+		#print(matrix)
+		#print(np.linalg.inv(matrix))
 
 		warpedImage = cv2.warpPerspective(I1, np.linalg.inv(matrix), (1000,1000))
 
@@ -108,21 +125,24 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSiz
 		perturbedPatch = warpedImage[newPoints[0,1]:newPoints[0,1] + PatchSize,newPoints[0,0]:newPoints[0,0] + PatchSize]
 
 
-		# cv2.imshow("image", I1)
-		# cv2.waitKey(0)
+		#cv2.imshow("image", I1)
+		#cv2.waitKey(0)
+
+		#print(I1)
 
 
-		# cv2.imshow("warped image", warpedImage)
-		# cv2.waitKey(0)
+		#cv2.imshow("warped image", warpedImage)
+		#cv2.waitKey(0)
 
-		# cv2.imshow("originalPatch", originalPatch)
-		# cv2.waitKey(0)
+		#cv2.imshow("originalPatch", originalPatch)
+		#cv2.waitKey(0)
 
-		# cv2.imshow("perturbedPatch", perturbedPatch)
-		# cv2.waitKey(0)
+		#cv2.imshow("perturbedPatch", perturbedPatch)
+		#cv2.waitKey(0)
 
 		GroundTruth = np.array(perturbations).astype(np.float32)
 		GroundTruth = GroundTruth/Perturbation
+
 
 		#print(np.shape(originalPatch))
 		#print(np.shape(perturbedPatch))
@@ -132,17 +152,33 @@ def GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSiz
 
 		combinedPatch /= 255
 
+
+		I1 = I1.astype(np.float32)
+		I1 /= 255
+
+		#print(I1)
+		#cv2.imshow("image", I1)
+		#cv2.waitKey(0)
+
+		#print(newPoints)
+
+
+
+
 		# Append All Images and Mask
+		ImagesBatch.append(I1)
 		PatchesBatch.append(combinedPatch)
 		GroundTruthBatch.append(GroundTruth)
-		
-	return PatchesBatch, GroundTruthBatch
+		OriginalCornersBatch.append(originalPatchInd.reshape((8)).astype(np.float32))
+
+	return ImagesBatch, PatchesBatch, GroundTruthBatch, OriginalCornersBatch
 
 
 def PrettyPrint(NumEpochs, DivTrain, MiniBatchSize, NumTrainSamples, LatestFile):
 	"""
 	Prints all stats with all arguments
 	"""
+	print("Tensorflow Version " + str(tf.__version__))
 	print('Number of Epochs Training will run for ' + str(NumEpochs))
 	print('Factor of reduction in training data is ' + str(DivTrain))
 	print('Mini Batch Size ' + str(MiniBatchSize))
@@ -151,7 +187,7 @@ def PrettyPrint(NumEpochs, DivTrain, MiniBatchSize, NumTrainSamples, LatestFile)
 		print('Loading latest checkpoint with the name ' + LatestFile)              
 
 	
-def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSize, Perturbation,
+def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTrain,DirNamesVal,NumTrainSamples, PatchSize, Perturbation,
 				   NumEpochs, MiniBatchSize, SaveCheckPoint, CheckPointPath,
 				   DivTrain, LatestFile, BasePath, LogsPath, ModelType):
 	"""
@@ -176,28 +212,56 @@ def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSiz
 	"""      
 	# Predict output with forward pass
 
-	H4Pt = HomographyModel(ImgPH, PatchSize, MiniBatchSize)
+	predictedPatch, H4Pt = HomographyModel(ImgPH, OriginalCornersPH, ImagesPH, PatchSize, MiniBatchSize, Perturbation, ModelType)
 
 
 	with tf.name_scope('Loss'):
 		###############################################
 		# Fill your loss function of choice here!
 		###############################################
-		if(ModelType is not 'Unsup'):
-			loss = tf.nn.l2_loss(H4Pt - GroundTruthPH)*2/8
+		if(ModelType == 'Sup'):
+
+			H4Ptloss = tf.nn.l2_loss(H4Pt - GroundTruthPH)
+			valH4PtLossPerEpoch_ph = tf.placeholder(tf.float32,shape=None,name='val_H4Pt_loss_per_epoch')
+		else:
+
+			L1loss = tf.math.reduce_sum(tf.abs(ImgPH[:,:,:,1] - predictedPatch[:,:,:,0]))/(PatchSize**2)
+			H4Ptloss = tf.nn.l2_loss(H4Pt - GroundTruthPH)
+
+			valL1LossPerEpoch_ph = tf.placeholder(tf.float32,shape=None,name='val_L1_loss_per_epoch')
+			valH4PtLossPerEpoch_ph = tf.placeholder(tf.float32,shape=None,name='val_H4Pt_loss_per_epoch')
+
 
 	with tf.name_scope('Adam'):
 		###############################################
 		# Fill your optimizer of choice here!
 		###############################################
-		Optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss)
+		if(ModelType == 'Sup'):
+			Optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(H4Ptloss)
+		else:
+			Optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(L1loss)
 
 	# Tensorboard
 	# Create a summary to monitor loss tensor
-	tf.summary.scalar('LossEveryIter', loss/MiniBatchSize)
+	if(ModelType == 'Sup'):
+		tf.summary.scalar('H4PtLossEveryIter', H4Ptloss/MiniBatchSize)
+	else:
+		tf.summary.scalar('H4PtLossEveryIter', H4Ptloss/MiniBatchSize)
+		tf.summary.scalar('L1LossEveryIter', L1loss/MiniBatchSize)
 	# tf.summary.image('Anything you want', AnyImg)
 	# Merge all summaries into a single operation
 	MergedSummaryOP = tf.summary.merge_all()
+
+	performance_summaries = []
+
+	if(ModelType == 'Sup'):
+		performance_summaries.append(tf.summary.scalar('H4PtValLossPerEpoch', valH4PtLossPerEpoch_ph))
+	else:
+		performance_summaries.append(tf.summary.scalar('L1ValLossPerEpoch', valL1LossPerEpoch_ph))
+		performance_summaries.append(tf.summary.scalar('H4PtValLossPerEpoch', valH4PtLossPerEpoch_ph))
+
+	performance = tf.summary.merge([performance_summaries])
+
 
 	# Setup Saver
 	Saver = tf.train.Saver()
@@ -219,12 +283,53 @@ def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSiz
 		for Epochs in tqdm(range(StartEpoch, NumEpochs)):
 			NumIterationsPerEpoch = int(NumTrainSamples/MiniBatchSize/DivTrain)
 			for PerEpochCounter in tqdm(range(NumIterationsPerEpoch)):
-				PatchBatch, GroundTruthBatch = GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSize)
+				ImagesBatch, PatchBatch, GroundTruthBatch, OriginalCornersBatch = GenerateBatch(BasePath, DirNamesTrain, PatchSize, Perturbation, MiniBatchSize)
 
 				#print(GroundTruthBatch)
 
-				FeedDict = {ImgPH: PatchBatch, GroundTruthPH: GroundTruthBatch}
-				_, LossThisBatch, Summary = sess.run([Optimizer, loss, MergedSummaryOP], feed_dict=FeedDict)
+				FeedDict = {ImgPH: PatchBatch, GroundTruthPH: GroundTruthBatch, OriginalCornersPH: OriginalCornersBatch, ImagesPH: ImagesBatch}
+
+				if(ModelType == 'Sup'):
+					_, H4PtLossThisBatch, Summary, H4Pt_out = sess.run([Optimizer, H4Ptloss, MergedSummaryOP, H4Pt], feed_dict=FeedDict)
+
+
+
+
+				else:
+					_, H4PtLossThisBatch, L1LossThisBatch, Summary = sess.run([Optimizer, H4Ptloss,L1loss, MergedSummaryOP], feed_dict=FeedDict)
+
+
+				#print(testOutput[2])
+
+				#print(testOutput[5])
+				#print(testOutput[6])
+				# if(PerEpochCounter % 20 == 0):
+
+
+				# #Full Image
+				# cv2.imshow("", testOutput[1][0,:,:])
+				# cv2.waitKey(0)
+
+				# #Warped Image
+				# cv2.imshow("", testOutput[0][0])
+				# cv2.waitKey(0)
+
+
+				# print(np.shape(testOutput[4]))
+
+				# #Correct Image
+				# cv2.imshow("", testOutput[4][0])
+				# cv2.waitKey(0)
+
+
+				# #Warped Patch
+				# cv2.imshow("",testOutput[3][0])
+				# cv2.waitKey(0)
+
+				# 	# Ground Truth
+				# 	cv2.imshow("", np.array(PatchBatch)[0,:,:,1])
+				# 	cv2.waitKey(0)
+
 				
 				# Save checkpoint every some SaveCheckPoint's iterations
 				if PerEpochCounter % SaveCheckPoint == 0:
@@ -232,6 +337,11 @@ def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSiz
 					SaveName =  CheckPointPath + str(Epochs) + 'a' + str(PerEpochCounter) + 'model.ckpt'
 					Saver.save(sess,  save_path=SaveName)
 					print('\n' + SaveName + ' Model Saved...')
+
+
+
+
+
 
 				# Tensorboard
 				Writer.add_summary(Summary, Epochs*NumIterationsPerEpoch + PerEpochCounter)
@@ -242,6 +352,44 @@ def TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain,NumTrainSamples, PatchSiz
 			SaveName = CheckPointPath + str(Epochs) + 'model.ckpt'
 			Saver.save(sess, save_path=SaveName)
 			print('\n' + SaveName + ' Model Saved...')
+
+
+			H4PtValLossSum = 0
+			L1ValLossSum = 0
+
+			NumIterationsPerEpochVal = int(1000/MiniBatchSize)
+
+
+			for PerEpochCounter in tqdm(range(NumIterationsPerEpochVal)):
+				ImagesBatch, PatchBatch, GroundTruthBatch, OriginalCornersBatch = GenerateBatch(BasePath, DirNamesVal, PatchSize, Perturbation, MiniBatchSize)
+
+				FeedDict = {ImgPH: PatchBatch, GroundTruthPH: GroundTruthBatch, OriginalCornersPH: OriginalCornersBatch, ImagesPH: ImagesBatch}
+
+				if(ModelType == 'Sup'):
+
+					H4PtLossThisBatch = sess.run([H4Ptloss], feed_dict=FeedDict)
+
+					H4PtValLossSum += H4PtLossThisBatch[0]/MiniBatchSize
+
+				else:
+					H4PtLossThisBatch, L1LossThisBatch = sess.run([H4Ptloss,L1loss], feed_dict=FeedDict)
+					H4PtValLossSum += H4PtLossThisBatch[0]/MiniBatchSize
+					L1ValLossSum += L1LossThisBatch[0]/MiniBatchSize
+
+
+
+				
+
+	  
+			if(ModelType == 'Sup'):
+
+				Summary = sess.run(performance, feed_dict={valH4PtLossPerEpoch_ph:H4PtValLossSum/NumIterationsPerEpochVal})
+				Writer.add_summary(Summary,Epochs)
+				Writer.flush()
+			else:
+				Summary = sess.run(performance, feed_dict={valH4PtLossPerEpoch_ph:H4PtValLossSum/NumIterationsPerEpochVal, valL1LossPerEpoch_ph:L1ValLossSum/NumIterationsPerEpochVal})
+				Writer.add_summary(Summary,Epochs)
+				Writer.flush()
 			
 
 def main():
@@ -278,7 +426,7 @@ def main():
 	Perturbation = Args.Perturbation
 
 	# Setup all needed parameters including file reading
-	DirNamesTrain, SaveCheckPoint, NumTrainSamples = SetupAll(BasePath, CheckPointPath)
+	DirNamesTrain, DirNamesVal, SaveCheckPoint, NumTrainSamples = SetupAll(BasePath, CheckPointPath)
 
 
 
@@ -294,8 +442,12 @@ def main():
 	# Define PlaceHolder variables for Input and Predicted output
 	ImgPH = tf.placeholder(tf.float32, shape = (MiniBatchSize, PatchSize, PatchSize, 2))
 	GroundTruthPH = tf.placeholder(tf.float32, shape=(MiniBatchSize, 8))
+	OriginalCornersPH = tf.placeholder(tf.float32, shape=(MiniBatchSize, 8))
+	ImagesPH = tf.placeholder(tf.float32, shape=(MiniBatchSize, 240,320))
+	#WarpedCornersPH = tf.placeholder(tf.int32, shape=(MiniBatchSize,8))
+	#CorrectMatrixPH = tf.placeholder(tf.float32, shape=(MiniBatchSize,3,3))
 	
-	TrainOperation(ImgPH, GroundTruthPH, DirNamesTrain, NumTrainSamples, PatchSize, Perturbation,
+	TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH, ImagesPH, DirNamesTrain, DirNamesVal, NumTrainSamples, PatchSize, Perturbation,
 				   NumEpochs, MiniBatchSize, SaveCheckPoint, CheckPointPath,
 				   DivTrain, LatestFile, BasePath, LogsPath, ModelType)
 		

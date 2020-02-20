@@ -35,7 +35,7 @@ def SetupAll(BasePath, CheckPointPath):
     NumClasses - Number of classes
     """
     # Setup DirNames
-    DirNamesTrain =  SetupDirNames(BasePath)
+    DirNamesTrain, DirNamesVal =  SetupDirNames(BasePath)
 
     # If CheckPointPath doesn't exist make the path
     if(not (os.path.isdir(CheckPointPath))):
@@ -48,7 +48,7 @@ def SetupAll(BasePath, CheckPointPath):
     
     NumTrainSamples = len(DirNamesTrain)
 
-    return DirNamesTrain, SaveCheckPoint, NumTrainSamples
+    return DirNamesTrain, DirNamesVal, SaveCheckPoint, NumTrainSamples
 
 def ReadLabels(LabelsPathTrain):
     if(not (os.path.isfile(LabelsPathTrain))):
@@ -69,9 +69,10 @@ def SetupDirNames(BasePath):
     Outputs:
     Writes a file ./TxtFiles/DirNames.txt with full path to all image files without extension
     """
-    DirNamesTrain = ReadDirNames('./TxtFiles/DirNamesTrain.txt')        
+    DirNamesTrain = ReadDirNames('./TxtFiles/DirNamesTrain.txt')    
+    DirNamesVal = ReadDirNames('./TxtFiles/DirNamesVal.txt')    
     
-    return DirNamesTrain
+    return DirNamesTrain, DirNamesVal
 
 def ReadDirNames(ReadPath):
     """
