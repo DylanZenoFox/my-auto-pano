@@ -392,7 +392,7 @@ def TrainOperation(ImgPH, GroundTruthPH, OriginalCornersPH,ImagesPH, DirNamesTra
 				Writer.flush()
 
 				print("Epoch " + str(Epochs) + " H4Pt Loss: " + str(H4PtValLossSum/NumIterationsPerEpochVal))
-				
+
 			else:
 				Summary = sess.run(performance, feed_dict={valH4PtLossPerEpoch_ph:H4PtValLossSum/NumIterationsPerEpochVal, valL1LossPerEpoch_ph:L1ValLossSum/NumIterationsPerEpochVal})
 				Writer.add_summary(Summary,Epochs)

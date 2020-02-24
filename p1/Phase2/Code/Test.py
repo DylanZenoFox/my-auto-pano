@@ -135,11 +135,14 @@ def ReadImages(DataPath,PatchSize, Perturbation):
 	#cv2.imshow("warped image", warpedImage)
 	#cv2.waitKey(0)
 
-	#cv2.imshow("originalPatch", originalPatch)
-	#cv2.waitKey(0)
+	cv2.imshow("originalPatch", originalPatch)
+	cv2.imwrite("./1.jpg", originalPatch)
+	cv2.waitKey(0)
 
-	#cv2.imshow("perturbedPatch", perturbedPatch)
-	#cv2.waitKey(0)
+	cv2.imshow("perturbedPatch", perturbedPatch)
+	cv2.imwrite("./2.jpg", perturbedPatch)
+
+	cv2.waitKey(0)
 
 	GroundTruth = np.array(perturbations).astype(np.float32)
 	GroundTruth = GroundTruth/Perturbation
@@ -218,11 +221,17 @@ def TestOperation(PatchPH, OriginalCornersPH,ImagePH, PatchSize,Perturbation,Mod
 			averageL2 += np.sum(np.square((H4Pt_out) - (GroundTruth)))/2
 
 
+			Image = (Image[0]*255).astype('uint8')#cv2.imread(DataPathNow)
+			#Image[0] = (Image[0]*255).astype('uint8')
 
-			#cv2.polylines(Image[0],[ground], True, (255,255,255),thickness = 3)
-			#cv2.polylines(Image[0],[pred], True, (0,0,0),thickness = 3)
+			cv2.polylines(Image,[ground], True, (255,255,255),thickness = 3)
+			cv2.polylines(Image,[pred], True, (0,0,0),thickness = 3)
 			#cv2.imshow("", Image[0])
 			#cv2.waitKey()
+
+
+
+			#cv2.imwrite('./Images/ValImages/Unsupervised/' + str(count) + '.jpg', Image)
 
 
 

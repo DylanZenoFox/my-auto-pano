@@ -110,11 +110,13 @@ def UnsupervisedHomographyModel(Img, FullImage, PatchSize, MiniBatchSize, Origin
 
     #invhom = tf.reshape(tf.linalg.inv(homography), [-1,9])
 
+    #homography = tf.linalg.inv(homography)
+
     #print(CorrectMatrix[0])
     #print(homography)
 
 
-    warpedImage = batch_transformer(FullImage[:,:,:,None], homography[:,None,:], (500, 500))
+    warpedImage = batch_transformer(FullImage[:,:,:,None], homography[:,None,:], (1000, 1000))
 
     #correct = batch_transformer(FullImage[:,:,:,None], CorrectMatrix[:,None,:], (1000, 1000))
 
