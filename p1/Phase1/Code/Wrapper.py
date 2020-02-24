@@ -65,24 +65,34 @@ def main():
 	System = Args.System
 
 
+	images = read_images(ImageSetBasePath)
+	colored_images = read_images(ImageSetBasePath, color=True)
+
+	corners = detect_corners(images)
+
+	display_results(colored_images)
+	display_results(corners)
+
+
 	"""
 	Read a set of images for Panorama stitching
 	"""
 
+def read_images(path, color=False):
 	images = []
-	colored_images = []
-
-	for file in os.listdir(ImageSetBasePath):
+	for file in os.listdir(path):
 		if(file.endswith(".png") or file.endswith(".jpg")):
-			file = ImageSetBasePath + "/" +  file
-			images.append(cv2.imread(file,cv2.IMREAD_GRAYSCALE))
-			colored_images.append(cv2.imread(file,cv2.IMREAD_COLOR))
-		else:
-			continue
+			file = path + "/" + file
+			if color:
+				image = cv2.imread(file,cv2.IMREAD_COLOR)
+			else:
+				image = cv2.imread(file,cv2.IMREAD_GRAYSCALE)
+			images.append(image)
+	return images
 
-
-	for corner in images:
-		cv2.imshow("d", corner)
+def display_results(images,name='image'):
+	for image in images:
+		cv2.imshow(name, image)
 		cv2.waitKey(0)
 
 
@@ -93,62 +103,42 @@ def main():
 
 	corners = []
 
-	for img in images:
-		img32 = np.float32(img)
-		dst = cv2.cornerHarris(img32, 2,3,0.04)
-
-		#dst = cv2.dilate(dst, None, iterations=1)
-
-		dst[dst<1000000] = 0
-
-#		print(dst + img)
-
-#		print(img)
-#		print(img)
-
-		cv2.imshow("d", img)
-		cv2.waitKey(0)
-#		print(dst)
-		corners.append(dst)
-		cv2.imshow("d", dst)
-		cv2.waitKey(0)
-
-
-	for corner in corners:
-#		print(corner)
-		cv2.imshow("c", corner)
-		cv2.waitKey(0)
-
-
+def detect_corners(input):
+	if isinstance(input, list):
+		return [detect_corners(image) for image in input]
+	img32 = np.float32(input)
+	dst = cv2.cornerHarris(img32, 2,3,0.04)
+	dst[dst<1000000] = 0
+	return dst
 
 
 	"""
 	Perform ANMS: Adaptive Non-Maximal Suppression
 	Save ANMS output as anms.png
 	"""
-	amns = []
-	n_best = NumFeatures
+
+def get_corner_points(input):
+	if isinstance(input, list):
+		return [get_corner_points(image) for image in input]
+	points = []
+	y_max = input.shape[0]
+	x_max = input.shape[1]
+	for i in range(20, y_max-20):
+		for j in range(20, x_max-20):
+			if input[i][j] > 0.0:
+				points.append((i,j,input[i][j]))
+	return points
+
+def anms_algorithm(input):
 	ris = []
-	best_corners = []
-
-	for i in range(len(corners)):
-		x_max = corners[i].shape[0]
-		y_max = corners[i].shape[1]
-		amns.append([])
-		for j in range(20,x_max-20):
-			for k in range(20,y_max-20):
-				if corners[i][j][k] > 0.0:
-#					print((j,k,corners[i][j][k]))
-					amns[i].append((j,k,corners[i][j][k]))
-
-	for i in range(len(amns)):
+	for i in range(len(input)):
 		ris.append([])
-		n_strong = len(amns[i])
+		n_strong = len(input[i])
 		for j in range(n_strong):
 			ri = 10e+20
 			for k in range(n_strong):
 				distance = 10e+20
-				if amns[i][k][2] > amns[i][j][2]:
+				if input[i][k][2] > input[i][j][2]:
 #					print(amns[i][k])
 #					print(amns[i][j])
 					distance = ((amns[i][k][0]-amns[i][j][0])**2 + (amns[i][k][1]-amns[i][j][1])**2)
@@ -159,6 +149,27 @@ def main():
 #			print(ri)
 			ris[i].append((amns[i][j][0],amns[i][j][1],ri))
 #		print(ris[i])
+
+
+def run_anms(input, n_best):
+
+	corner_points = get_corner_points(input)
+	amns = []
+	n_best = NumFeatures
+	ris = []
+	best_corners = []
+
+# 	for i in range(len(corners)):
+# 		x_max = corners[i].shape[0]
+# 		y_max = corners[i].shape[1]
+# 		amns.append([])
+# 		for j in range(20,x_max-20):
+# 			for k in range(20,y_max-20):
+# 				if corners[i][j][k] > 0.0:
+# #					print((j,k,corners[i][j][k]))
+# 					amns[i].append((j,k,corners[i][j][k]))
+
+
 
 	for i in range(len(ris)):
 		ris[i] = sorted(ris[i], key = lambda x: x[2], reverse=True)
