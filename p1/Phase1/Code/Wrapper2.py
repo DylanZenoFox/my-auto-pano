@@ -28,22 +28,52 @@ import matplotlib.pyplot as plt
 from Utils import *
 # Add any python libraries here
 
-def warpTwoImages(img2, img1, H):
-    '''warp img1 to img2 with homograph H'''
-    h1,w1 = img1.shape[:2]
-    h2,w2 = img2.shape[:2]
-    pts1 = np.float32([[0,0],[0,h1],[w1,h1],[w1,0]]).reshape(-1,1,2)
-    pts2 = np.float32([[0,0],[0,h2],[w2,h2],[w2,0]]).reshape(-1,1,2)
-    pts2_ = cv2.perspectiveTransform(pts2, H)
-    pts = np.concatenate((pts1, pts2_), axis=0)
-    [xmin, ymin] = np.int32(pts.min(axis=0).ravel() - 0.5)
-    [xmax, ymax] = np.int32(pts.max(axis=0).ravel() + 0.5)
-    t = [-xmin,-ymin]
-    Ht = np.array([[1,0,t[0]],[0,1,t[1]],[0,0,1]]) # translate
+# def warpTwoImages(img2, img1, H):
+#     '''warp img1 to img2 with homograph H'''
+#     h1,w1 = img1.shape[:2]
+#     h2,w2 = img2.shape[:2]
+#     pts1 = np.float32([[0,0],[0,h1],[w1,h1],[w1,0]]).reshape(-1,1,2)
+#     pts2 = np.float32([[0,0],[0,h2],[w2,h2],[w2,0]]).reshape(-1,1,2)
+#     pts2_ = cv2.perspectiveTransform(pts2, H)
+#     pts = np.concatenate((pts1, pts2_), axis=0)
+#     [xmin, ymin] = np.int32(pts.min(axis=0).ravel() - 0.5)
+#     [xmax, ymax] = np.int32(pts.max(axis=0).ravel() + 0.5)
+#     t = [-xmin,-ymin]
+#     Ht = np.array([[1,0,t[0]],[0,1,t[1]],[0,0,1]]) # translate
 
-    result = cv2.warpPerspective(img2, Ht.dot(H), (xmax-xmin, ymax-ymin))
-    result[t[1]:h1+t[1],t[0]:w1+t[0]] = img1
-    return result
+#     result = cv2.warpPerspective(img2, Ht.dot(H), (xmax-xmin, ymax-ymin))
+#     result[t[1]:h1+t[1],t[0]:w1+t[0]] = img1
+#     return result
+
+
+def warpTwoImages(img2, img1, H):
+	'''warp img1 to img2 with homograph H'''
+	h1,w1 = img1.shape[:2]
+	h2,w2 = img2.shape[:2]
+	pts1 = np.float32([[0,0],[0,h1],[w1,h1],[w1,0]]).reshape(-1,1,2)
+	pts2 = np.float32([[0,0],[0,h2],[w2,h2],[w2,0]]).reshape(-1,1,2)
+	pts2_ = cv2.perspectiveTransform(pts2, H)
+	pts = np.concatenate((pts1, pts2_), axis=0)
+	[xmin, ymin] = np.int32(pts.min(axis=0).ravel() - 0.5)
+	[xmax, ymax] = np.int32(pts.max(axis=0).ravel() + 0.5)
+	t = [-xmin,-ymin]
+	Ht = np.array([[1,0,t[0]],[0,1,t[1]],[0,0,1]]) # translate
+
+	result = cv2.warpPerspective(img2, Ht.dot(H), (xmax-xmin, ymax-ymin))
+	try:
+		for y in range(t[1],h1+t[1]):
+			for x in range(t[0],w1+t[0]):
+				if result[y][x][0] == 0 and result[y][x][1] == 0 and result[y][x][2] == 0:
+					for c in range(3):
+						result[y][x][c] = img1[y-t[1]][x-t[0]][c]
+	except IndexError:
+		for y in range(t[1],h1+t[1]):
+			for x in range(t[0],w1+t[0]):
+				if result[y][x] == 0:
+					result[y][x] = img1[y-t[1]][x-t[0]]
+
+#    result[t[1]:h1+t[1],t[0]:w1+t[0]] = img1
+	return result
 
 
 def main():
@@ -55,7 +85,7 @@ def main():
 	# NumFeatures = Args.NumFeatures
 
 	Parser = argparse.ArgumentParser()
-	Parser.add_argument('--ImageSetBasePath', default="../Data/Train/Set2", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
+	Parser.add_argument('--ImageSetBasePath', default="../Data/Test/Phase1/TestSet2", help='Number of best features to extract from each image, Default: ../Data/Train/Set1')
 	Parser.add_argument('--NumFeatures', default=300,type=int ,help='Number of best features to extract from each image, Default:100')
 	Parser.add_argument('--System', default="mac", help="Sets system for visualization, Options: 'linux', 'mac'")
 
@@ -64,6 +94,8 @@ def main():
 	ImageSetBasePath = Args.ImageSetBasePath
 	System = Args.System
 
+#################################33
+#FIRST TRY
 
 
 	# images = read_images(ImageSetBasePath)
@@ -155,13 +187,290 @@ def main():
 
 	#  	core = num_images - 1
 
+############################3
+#SECOND TRY
+
+	# images = read_images(ImageSetBasePath)
+	# colored_images = read_images(ImageSetBasePath, color=True)
+
+	# num_images = len(images)
+
+	# while(num_images > 1):
+
+	# 	corners = detect_corners(images)
+
+	# 	corner_points = get_corner_points(corners)
+
+	# 	best_corners = []
+
+	# 	for i in range(len(colored_images)):
+
+	# 		b = anms(corner_points[i], NumFeatures)
+	# 		best_corners.append(b)
+
+	# 	match_matrix = np.zeros((num_images,num_images))
+	# 	homography_matrix = np.zeros((num_images, num_images, 3, 3))
+
+	# 	for i in range(num_images):
+	# 		for j in range(num_images):
+	# 			if(i != j):
+
+	# 				features1 = compute_features(images[i], best_corners[i])
+	# 				features2 = compute_features(images[j], best_corners[j])
+
+	# 				matches = feature_match(images[i], features1, images[j],features2)
+
+	# 				homography, num_matches, best_matches = ransac(images[i], images[j], matches)
+
+	#  				match_matrix[i,j] = num_matches
+	#  				homography_matrix[i,j] = homography
+
+
+	#  	print(match_matrix)
+
+	#  	print(np.sum(match_matrix,axis = 0) + np.sum(match_matrix, axis = 1))
+
+
+	#  	coreImage = np.argmax(np.sum(match_matrix,axis = 0) + np.sum(match_matrix, axis = 1))
+
+	#  	imageToFuse = np.argmax(match_matrix[coreImage])
+
+	#  	print(coreImage)
+	#  	print(imageToFuse)
+
+	#  	homography = homography_matrix[coreImage, imageToFuse]
+	#  	#homography = homography_matrix[imageToFuse, coreImage]
+
+
+	#  	#resultImageColored = warpTwoImages(colored_images[coreImage], colored_images[imageToFuse], homography)
+	#  	#resultImage = warpTwoImages(images[coreImage], images[imageToFuse], homography)
+
+	#  	resultImageColored = warpTwoImages(colored_images[imageToFuse], colored_images[coreImage], homography)
+	#  	resultImage = warpTwoImages(images[imageToFuse], images[coreImage], homography)
+
+	#  	cv2.imwrite("./merged" + str(num_images) + ".jpg", resultImageColored)
+
+	#  	if(imageToFuse > coreImage):
+
+	#  		images.pop(imageToFuse)
+	#  		images.pop(coreImage)
+	#  		colored_images.pop(imageToFuse)
+	#  		colored_images.pop(coreImage)
+	#  	else:
+	#  		images.pop(coreImage)
+	#  		images.pop(imageToFuse)
+	#  		colored_images.pop(coreImage)
+	#  		colored_images.pop(imageToFuse)
+
+	#  	images.append(resultImage)
+	#  	colored_images.append(resultImageColored)
+
+	#  	num_images = len(images)
+
 
 	images = read_images(ImageSetBasePath)
 	colored_images = read_images(ImageSetBasePath, color=True)
 
 	num_images = len(images)
 
+
+		
+	corners = detect_corners(images)
+
+	corner_points = get_corner_points(corners)
+
+	best_corners = []
+
+	for i in range(len(colored_images)):
+
+		b = anms(corner_points[i], NumFeatures)
+		best_corners.append(b)
+
+	match_matrix = np.zeros((num_images,num_images))
+	homography_matrix = np.zeros((num_images, num_images, 3, 3))
+
+	for i in range(num_images):
+
+		#cv2.imshow("", images[i])
+		#cv2.waitKey(0)
+
+
+
+		for j in range(num_images):
+			if(i != j):
+
+				features1 = compute_features(images[i], best_corners[i])
+				features2 = compute_features(images[j], best_corners[j])
+
+				matches = feature_match(images[i], features1, images[j],features2)
+
+				homography, num_matches, best_matches = ransac(images[i], images[j], matches)
+
+				match_matrix[i,j] = num_matches
+				homography_matrix[i,j] = homography
+
+				print(num_matches)
+
+
+	print(match_matrix)
+
+	print(np.sum(match_matrix,axis = 0) + np.sum(match_matrix, axis = 1))
+
+	coreImage = np.argmax(np.sum(match_matrix,axis = 0) + np.sum(match_matrix, axis = 1))
+
+	print(coreImage)
+
+	ordering = [coreImage]
+
+	# Path 1 
+
+	best_child = [child for child in reversed(list(np.argsort(match_matrix[coreImage]))) if match_matrix[coreImage][child] != 0 and child not in ordering][0]
+
+	print(best_child)
+	ordering.append(best_child)
+
+	while(True):
+
+		best_children = [child for child in reversed(list(np.argsort(match_matrix[best_child]))) if match_matrix[best_child][child] != 0]
+
+		print(best_children)
+
+
+
+		if(len(best_children) == 0 or best_children[0] in ordering):
+			break
+		else:
+			best_child = best_children[0]
+			ordering.append(best_child)
+
+
+
+
+	print("Path 1 ordering " + str(ordering))
+
+
+	# homography1 = homography_matrix[coreImage][ordering[1]]
+	# resultImage1 = warpTwoImages(images[ordering[1]], images[coreImage], homography1)
+
+	# cv2.imshow("", resultImage1)
+	# cv2.waitKey(0)
+
+	# homography2 = homography1.dot(homography_matrix[ordering[1], ordering[2]])
+	# resultImage2 = warpTwoImages(images[ordering[2]], images[coreImage], homography2)
+
+	# cv2.imshow("", resultImage2)
+	# cv2.waitKey(0)
+
+
+	# homography3 = homography1.dot(homography_matrix[ordering[1], ordering[2]])
+	# print(homography3)
+	# #homography3 /= homography3[2,2]
+	# print(homography3)
+	# resultImage3 = warpTwoImages(images[ordering[2]], resultImage1, homography3)
+
+	# cv2.imshow("", resultImage3)
+	# cv2.waitKey(0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	best_child = [child for child in reversed(list(np.argsort(match_matrix[coreImage]))) if match_matrix[coreImage][child] != 0 and child not in ordering][0]
+	ordering.insert(0,best_child)
+
+
+	while(True):
+
+		best_children = [child for child in reversed(list(np.argsort(match_matrix[best_child]))) if match_matrix[best_child][child] != 0 and child not in ordering]
+
+		if(len(best_children) == 0):
+			break
+		else:
+			best_child = best_children[0]
+			ordering.insert(0,best_child)
+
+	print(ordering)
+
+
+	for image in images:
+		cv2.imshow("", image)
+		cv2.waitKey(0)
+
+
+	num_images = len(ordering)
+	coreindex = ordering.index(coreImage)
+	print("Core Index: " + str(coreindex))
+
 	while(num_images > 1):
+
+		print("COREINDEX: " + str(coreindex))
+
+		newImages = []
+
+		for i in range(0, num_images, 2):
+			print("i: " + str(i))
+
+			if(i == num_images - 1):
+
+				newImages.append(images[ordering[i]])
+				print("APPENDING EXTRA IMAGE")
+				break
+
+			j = i + 1
+
+			if(i < coreindex):
+
+				print("Mapping Right onto Left")
+
+				homography = homography_matrix[ordering[j], ordering[i]]
+				resultImage = warpTwoImages(images[ordering[i]], images[ordering[j]], homography)
+
+				cv2.imwrite("./" + str(i) + str(ordering) +".jpg", resultImage)
+				#cv2.waitKey(0)
+
+			else:
+
+				print("Mappin Left onto Right")
+
+				homography = homography_matrix[ordering[i], ordering[j]]
+				resultImage = warpTwoImages(images[ordering[j]], images[ordering[i]], homography)
+
+				cv2.imwrite("./" + str(i) + str(ordering) +".jpg", resultImage)
+				#cv2.waitKey(0)
+
+			if(i == coreindex or j == coreindex):
+				newCoreIndex = len(newImages)
+
+			newImages.append(resultImage)
+
+		images = newImages
+
+		for image in newImages:
+			cv2.imshow("", image)
+			cv2.waitKey(0)
+
+
+		num_images = len(images)
+
+		print("New NumImages: "+ str(num_images))
+
+		ordering = list(range(0,num_images))
+		print(ordering)
+
+		coreindex = newCoreIndex
+		print("New Core Index:" + str(coreindex))
+
+		if(num_images == 1):
+			break
 
 		corners = detect_corners(images)
 
@@ -169,7 +478,7 @@ def main():
 
 		best_corners = []
 
-		for i in range(len(colored_images)):
+		for i in range(len(images)):
 
 			b = anms(corner_points[i], NumFeatures)
 			best_corners.append(b)
@@ -188,50 +497,95 @@ def main():
 
 					homography, num_matches, best_matches = ransac(images[i], images[j], matches)
 
-	 				match_matrix[i,j] = num_matches
-	 				homography_matrix[i,j] = homography
+					match_matrix[i,j] = num_matches
+					homography_matrix[i,j] = homography
+
+					#print(i)
+					#print(j)
+
+		print(match_matrix)
 
 
-	 	print(match_matrix)
-
-	 	print(np.sum(match_matrix,axis = 0) + np.sum(match_matrix, axis = 1))
 
 
-	 	coreImage = np.argmax(np.sum(match_matrix,axis = 0) + np.sum(match_matrix, axis = 1))
 
-	 	imageToFuse = np.argmax(match_matrix[coreImage])
-
-	 	print(coreImage)
-	 	print(imageToFuse)
-
-	 	homography = homography_matrix[coreImage, imageToFuse]
-	 	#homography = homography_matrix[imageToFuse, coreImage]
+				
 
 
-	 	#resultImageColored = warpTwoImages(colored_images[coreImage], colored_images[imageToFuse], homography)
-	 	#resultImage = warpTwoImages(images[coreImage], images[imageToFuse], homography)
 
-	 	resultImageColored = warpTwoImages(colored_images[imageToFuse], colored_images[coreImage], homography)
-	 	resultImage = warpTwoImages(images[imageToFuse], images[coreImage], homography)
 
-	 	cv2.imwrite("./merged" + str(num_images) + ".jpg", resultImageColored)
 
-	 	if(imageToFuse > coreImage):
 
-	 		images.pop(imageToFuse)
-	 		images.pop(coreImage)
-	 		colored_images.pop(imageToFuse)
-	 		colored_images.pop(coreImage)
-	 	else:
-	 		images.pop(coreImage)
-	 		images.pop(imageToFuse)
-	 		colored_images.pop(coreImage)
-	 		colored_images.pop(imageToFuse)
 
-	 	images.append(resultImage)
-	 	colored_images.append(resultImageColored)
 
-	 	num_images = len(images)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	# composite_image = images[coreImage]
+
+	# visited = [coreImage]
+	# queue = []
+
+	# queue.append(coreImage)
+
+	# while(len(queue) != 0):
+
+	# 	targetImage = queue.pop(0)
+
+
+	# 	children = [child for child in reversed(list(np.argsort(match_matrix[targetImage]))) if match_matrix[targetImage][child] != 0]  #np.nonzero(match_matrix[targetImage])[0].tolist()
+
+	# 	print(children)
+
+	# 	best_child = [child for child in children if child not in visited][0]
+
+	# 	visited.append(best_child)
+
+	# 	queue.append(best_child)
+
+	# 	print(best_child)
+
+
+
+	# 	homography = homography_matrix[coreImage, best_child]
+
+	# 	print(homography)
+
+	# 	resultImage = warpTwoImages(images[best_child], composite_image, homography)
+
+	# 	#composite_image = resultImage
+
+	# 	cv2.imshow("", resultImage)
+	# 	cv2.waitKey(0)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -370,7 +724,7 @@ def compute_features(image, points, size = 40):
 
 
 
-def feature_match(image1, features1, image2, features2, threshold = 0.5):
+def feature_match(image1, features1, image2, features2, threshold = 0.7):
 
 	#print(len(features1))
 	#print(len(features2))
@@ -449,12 +803,14 @@ def ransac(image1, image2, matches, Nmax = 500, threshold = 5, inlier_target = 0
 			SSD = (p1[i][0] - j[0])**2 + (p1[i][1] - j[1])**2
 
 			if(SSD < threshold):
-				inliers.append(i)
+				inliers.append((SSD,i))
 
 		if(len(inliers) > len(largest_inliers)):
 			#print("SUCCESS")
 			#print(len(inliers))
 			largest_inliers = inliers
+
+			print(largest_inliers)
 
 			best_homography = matrix
 
@@ -464,7 +820,12 @@ def ransac(image1, image2, matches, Nmax = 500, threshold = 5, inlier_target = 0
 
 				break
 
-	#drawMatches(image1, [matches[0][i] for i in largest_inliers], image2, [matches[1][i] for i in largest_inliers], [cv2.DMatch(i,i,matches[2][j].distance) for i,j in enumerate(largest_inliers)])
+	inliers_matches = [inlier[1] for inlier in largest_inliers]
+
+	#drawMatches(image1, [matches[0][i] for i in inliers_matches], image2, [matches[1][i] for i in inliers_matches], [cv2.DMatch(i,i,matches[2][j].distance) for i,j in enumerate(inliers_matches)])
+
+	best_inliers = sorted(largest_inliers)
+	print(best_inliers)
 
 	# homographies = []
 
@@ -472,25 +833,37 @@ def ransac(image1, image2, matches, Nmax = 500, threshold = 5, inlier_target = 0
 
 	# 	points = random.sample(largest_inliers, 4)
 
-	# 	p1 = [list(keypoint.pt) for keypoint in matches[0]]
-	# 	p2 = [list(keypoint.pt) for keypoint in matches[1]]
+	#p1 = [list(keypoint.pt) for keypoint in matches[0]]
+	#p2 = [list(keypoint.pt) for keypoint in matches[1]]
 
-	# 	sampledPoints1 = np.array([p1[i] for i in points]).astype(np.float32)
-	# 	sampledPoints2 = np.array([p2[i] for i in points]).astype(np.float32)
+	#sampledPoints1 = np.array([p1[i] for i in points]).astype(np.float32)
+	#sampledPoints2 = np.array([p2[i] for i in points]).astype(np.float32)
 
-	# 	matrix = cv2.getPerspectiveTransform(sampledPoints2, sampledPoints1)
+	#find_homography = cv2.findHomography(sampledPoints2, sampledPoints1)[0]
 
 	# 	homographies.append(matrix)
 
 	# 	print(matrix)
 
 
-	# print("BEST AND AVERAGE")
-	# avg_homography = np.mean(np.stack(homographies),axis = 0)
-	# print(avg_homography)
-	# print(best_homography)
+	#print("BEST AND AVERAGE")
+	#avg_homography = np.mean(np.stack(homographies),axis = 0)
+	#print(avg_homography)
 
-	return best_homography, num_matches, ([matches[0][i] for i in largest_inliers],[matches[1][i] for i in largest_inliers],[cv2.DMatch(i,i,matches[2][j].distance) for i,j in enumerate(largest_inliers)])
+	print("BEST")
+	print(best_homography)
+	print("FIND Homography")
+	#print(find_homography)
+
+	num_matches = len(largest_inliers)
+
+	if(num_matches < 5):
+		print("NOT A GOOD HOMOGRAPHY")
+		return None, 0, None
+
+
+
+	return best_homography, num_matches, ([matches[0][i] for i in inliers_matches],[matches[1][i] for i in inliers_matches],[cv2.DMatch(i,i,matches[2][j].distance) for i,j in enumerate(inliers_matches)])
 
 
 
